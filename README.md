@@ -1,0 +1,2 @@
+# kindle_comic_store
+日本のAmazon Kindle Unlimitedコミックスの一覧を生成します
