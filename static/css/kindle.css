@@ -1,0 +1,37 @@
+table {
+    width: auto;
+    border: 1px #E3E3E3 solid;
+    border-collapse: collapse;
+    border-spacing: 0;
+    table-layout: fixed;
+    font-size: 13px;
+}
+
+table th {
+    padding: 5px;
+    border: #E3E3E3 solid;
+    border-width: 0 0 1px 1px;
+    background: #ADD8E6;
+    font-weight: bold;
+    line-height: 120%;
+    text-align: center;
+    vertical-align: middle
+}
+
+table td {
+    padding: 5px;
+    border: 1px #E3E3E3 solid;
+    border-width: 0 0 1px 1px;
+    background-color: #FFFFFF;
+    white-space: nowrap;
+    vertical-align: middle;
+    text-align: center;
+}
+
+table td.left {
+    text-align: left;
+}
+
+img {
+    width: 150px;
+}
