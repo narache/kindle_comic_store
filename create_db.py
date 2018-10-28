@@ -8,7 +8,7 @@ from contextlib import closing
 
 db_name = 'database.db'
 
-if not(os.path.exists(db_name)):
+if os.path.exists(db_name):
     sys.exit()
 
 with closing(sqlite3.connect(db_name)) as conn:
