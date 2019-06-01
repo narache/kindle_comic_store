@@ -10,11 +10,10 @@ import traceback
 from contextlib import closing
 from time import sleep
 
+from retry import retry
 from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver import Chrome, ChromeOptions
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.support.ui import WebDriverWait
 
 db_name = 'database.db'
 
@@ -28,8 +27,15 @@ os.environ['PATH'] += (delimiter + os.path.abspath('driver'))
 options = ChromeOptions()
 options.add_argument('--headless')
 driver = Chrome(options=options)
+driver.set_window_size(10240, 10240)
 
 page_counter = 0
+
+
+@retry(TimeoutException, tries=4, delay=5, backoff=2)
+def get_next_page(driver, next_page_link):
+    driver.get(next_page_link.get_attribute('href'))
+
 
 try:
     # コミックトップにアクセス
@@ -49,20 +55,32 @@ try:
             page_counter += 1
             print(str(page_counter) + 'ページ目の処理を開始しました。')
 
-            books = driver.find_element_by_id('s-results-list-atf').find_elements_by_tag_name('li')
+            books = driver.find_elements_by_xpath(
+                '//*[@id="search"]//div[@class="s-include-content-margin s-border-bottom"]')
             comics = []
 
             # ページ内処理
             for book in books:
                 # サムネイル取得
-                thumbnail = book.find_element_by_tag_name('img').get_attribute('src')
+                thumbnail = book.find_element_by_xpath('.//a/div/img[@class="s-image"]').get_attribute('src')
                 # 本の詳細情報取得
-                info_box = book.find_element_by_class_name('a-col-right')
-                title_box = info_box.find_element_by_class_name('s-color-twister-title-link')
+                title_box = book.find_element_by_xpath('.//h2/a')
                 book_name = title_box.text.strip()
                 book_url = title_box.get_attribute('href')
-                release_date = info_box.find_elements_by_class_name('a-color-secondary')[0].text
-                author_name = info_box.find_elements_by_class_name('a-spacing-none')[1].text
+                release_date = ''
+                try:
+                    release_date = book.find_element_by_xpath(
+                        './/span[@class="a-size-base a-color-secondary a-text-normal"]').text
+                except NoSuchElementException:
+                    pass
+                author_name = ''
+                try:
+                    author_name = \
+                        book.find_element_by_xpath('.//div[@class="a-row a-size-base a-color-secondary"]').text.split(
+                            '|')[
+                            0]
+                except NoSuchElementException:
+                    pass
                 # SQLのパラメータを作成
                 comics.append((thumbnail, book_name, book_url, release_date, author_name))
 
@@ -71,15 +89,15 @@ try:
             conn.commit()
 
             try:
-                next_page_link = driver.find_element_by_id('pagnNextLink')
-                # 「次のページ」を押下したいが、Seleniumに画面外にあると誤判定されてしまう様なので無理やりスクロールする
-                driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                next_page_link.click()
-                # 「前のページ」が表示されるまで待つ
-                wait = WebDriverWait(driver, 10)
-                wait.until(
-                    expected_conditions.visibility_of_element_located((By.ID, 'pagnPrevString')))
-                sleep(1)
+                next_page_link = driver.find_element_by_xpath(
+                    '//*[@id="search"]//ul[@class="a-pagination"]//li[@class="a-last"]/a')
+                sleep(2)
+                get_next_page(driver, next_page_link)
+
+                if (page_counter % 100) == 0:
+                    print('ちょっと休憩')
+                    sleep(30)
+
             except NoSuchElementException:
                 print(str(page_counter) + 'ページ目が最後のページの様です。処理を終了します。')
                 break
